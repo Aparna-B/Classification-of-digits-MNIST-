@@ -1,0 +1,67 @@
+import numpy as np
+import scipy
+
+
+# Normalize the test and training data for better results.No need to divide with variance because we know that all data on the same scale.
+
+def normalize_data(train_data,test_data):
+    for i in range(len(train_data)):
+        temp=np.mean(train_data[i])
+        train_data[i]=train_data[i]-temp
+
+
+    for i in range(len(test_data)):
+        temp=np.mean(test_data[i])
+        test_data[i]=test_data[i]-temp
+
+    return train_data,test_data
+
+
+def find_cov(train_data):
+    cov=np.zeros(len(train_data[1])*len(train_data[1]))
+    cov=cov.reshape(len(train_data[1]),len(train_data[1]))                           #finding the covariance matrix i.e x*x.T
+    for i in range(len(train_data)):
+        cov=cov+np.dot(train_data[i],np.transpose(train_data[i]))
+        
+    cov=cov/len(train_data)
+    
+    return cov
+    
+
+
+def find_vectors(train_data):
+    s,v,d=np.linalg.svd(train_data,1,1)
+    v=np.diag(v)                                               #finding the eigen vectors corresponding to 'k' highest eigenvalues
+    eig_value,eig_vector=np.linalg.eig(v)
+    return v,eig_value,eig_vector
+
+
+def projection(support_vec,train_data):
+    y=[]
+    for i in range(len(support_vec)):
+                   temp_arr=[]
+                   
+                   temp_arr.append(np.dot(train_data,np.transpose(support_vec[i])))
+                   y.append(temp_arr)
+    y=np.array(y)
+    return y
+                   
+                                   
+                   
+            
+
+
+def main_func(train_data,test_data,K):
+    train,test=normalize_data(train_data,test_data)          #normalizing data for better results and bringing onto the same scal
+    cov_mat=find_cov(train_data)                 #finding the covariance matrix
+    #print(len(cov_mat),len(cov_mat[1]))
+    mat,eig_val,eig_vect=find_vectors(cov_mat)                                        
+    #print(eig_val)
+    #print(eig_vect)
+    projected_data=projection(eig_vect,train)                   #data with reduced dimension
+    return(projected_data)
+                   
+    
+
+    
+        
