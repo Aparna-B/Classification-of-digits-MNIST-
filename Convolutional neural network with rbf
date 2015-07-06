@@ -1,4 +1,4 @@
-#This is based on the tutorial on deeplearning.net,with additional rbf layer and hidden layer
+#This is based on the 'Using Theano' tutorial on deeplearning.net,with additional rbf layer and hidden layer
 
 
 
@@ -23,14 +23,14 @@ class Layer(object):
     def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2)):
         
         self.input = input
-        filter_params = np.prod(filter_shape[1:])
-        f_out = (filter_shape[0] * np.prod(filter_shape[2:])/np.prod(poolsize))
+        filter_params = np.prod(filter_shape[1:])                                            #Filter shape is in the form of a tuple (number of filters,number of input feature maps,filter height,filter width)
+        f_out = (filter_shape[0] * np.prod(filter_shape[2:])/np.prod(poolsize))             # Image shape is another tuple ,(batch size, number of input feature maps,image height, image width)
         lim = np.sqrt(6. /(filter_params + f_out))
         self.weights = theano.shared(np.asarray(rng.uniform(low = -lim,high = lim,size=filter_shape),dtype=theano.config.floatX),borrow=True)  #Layer Object for image-input,weight filters and output of each 
         self.bias = theano.shared(value = np.zeros((filter_shape[0],),dtype = theano.config.floatX),borrow=True)
-        conv_out = conv.conv2d(input = input, filters = self.weights,filter_shape = filter_shape,image_shape =image_shape)
-        pooled_out = downsample.max_pool_2d(input = conv_out,ds=poolsize,ignore_border=True)
-        self.output = T.tanh(pooled_out + self.bias.dimshuffle('x',0,'x','x'))
+        conv_out = conv.conv2d(input = input, filters = self.weights,filter_shape = filter_shape,image_shape =image_shape)       #Convolution Output
+        pooled_out = downsample.max_pool_2d(input = conv_out,ds=poolsize,ignore_border=True)                                   # Downsampling which involves ,convolving a matrix with lower dimensions with the imagewith no overlap
+        self.output = T.tanh(pooled_out + self.bias.dimshuffle('x',0,'x','x'))                                                  #Dimshuffle allows to introduce a new axis
         self.params = [self.weights, self.bias]
 
 
@@ -69,7 +69,7 @@ def network(learning_rate=0.1, n_epochs=200,dataset='mnist',nkerns=[20, 50], bat
         rng,
         input=layer0_input,
         image_shape=(batch_size, 1, 28, 28),                              # 2 layers-one convolutional and one downsampling/pooling layer where the max of a (2,2)grid is chosen by max pooling
-        filter_shape=(nkerns[0], 1, 5, 5),
+        filter_shape=(nkerns[0], 1, 5, 5),                  
         poolsize=(2, 2)
     )
 
@@ -170,7 +170,7 @@ def network(learning_rate=0.1, n_epochs=200,dataset='mnist',nkerns=[20, 50], bat
         epoch = epoch + 1
         for minibatch_index in xrange(n_train_batches):
 
-            iter = (epoch - 1) * n_train_batches + minibatch_index
+            iter = (epoch - 1) * n_train_batches + minibatch_index                          #Stochastic gradient descent
 
             if iter % 100 == 0:
                 print 'training @ iter = ', iter
