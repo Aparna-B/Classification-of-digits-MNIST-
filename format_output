@@ -1,0 +1,10 @@
+import numpy 
+
+
+def format_output(label,num_labels):
+     Y1=numpy.zeros((len(label),num_labels))
+     for index in range(len(label)):
+            temp=label[index]
+            Y1[index,temp]=1
+            
+     return Y1   
