@@ -1,0 +1,238 @@
+#The code is based on the theano tutorial on www.deeplearning.net
+
+
+import os
+import sys
+import time
+
+import numpy
+
+import theano
+import theano.tensor as T
+import mnist_vector
+
+
+class LinearClassifier(object):
+    
+
+    def __init__(self, input, layer_in, layer_out):
+        
+        # initialize with 0 the weights W as a matrix of shape (n_in, n_out)
+        self.weights = theano.shared(
+            value=numpy.zeros(
+                (layer_in, layer_out),
+                dtype=theano.config.floatX
+            ),
+            name='W',
+            borrow=True
+        )
+        # initialize the baises b as a vector of n_out 0s
+        self.bias = theano.shared(
+            value=numpy.zeros(
+                (layer_out,),
+                dtype=theano.config.floatX
+            ),
+            name='b',
+            borrow=True
+        )
+        self.prob = T.nnet.softmax(T.dot(input, self.weights) + self.bias)
+        self.y_pred = T.argmax(self.prob, axis=1)
+        
+
+        # parameters of the model
+        self.params = [self.weights, self.bias]
+
+    def cost_function(self, y):
+        
+        
+        return -T.mean(T.log(self.prob)[T.arange(y.shape[0]), y])
+        
+
+    def errors(self, y):
+
+        if y.dtype.startswith('int'):
+            # the T.neq operator returns a vector of 0s and 1s, where 1
+            # represents a mistake in prediction
+            return T.mean(T.neq(self.y_pred, y))
+        else:
+             print('Error')
+
+
+def get_data(dataset):
+
+
+    print '... loading data'
+
+    # Load the dataset
+    
+    train_set=mnist_vector.get_labeled_data('train-images-idx3-ubyte.gz','train-labels-idx1-ubyte.gz')
+    valid_set=train_set
+    test_set=mnist_vector.get_labeled_data('t10k-images-idx3-ubyte.gz','t10k-labels-idx1-ubyte.gz')
+   
+    #train_set, test_set format: tuple(input, target)
+    #input is an numpy.ndarray of 2 dimensions (a matrix)
+
+    def shared_dataset(data, borrow=True):
+        #sharing the variables to improve computation
+        data_image, data_label = data
+        shared_image = theano.shared(numpy.asarray(data_image,
+                                               dtype=theano.config.floatX),
+                                 borrow=borrow)
+        shared_label = theano.shared(numpy.asarray(data_label,
+                                               dtype=theano.config.floatX),
+                                 borrow=borrow)
+        #typecasting labels as int32 to reduce  storage
+        return shared_image, T.cast(shared_label, 'int32')
+
+    test_set_x, test_set_y = shared_dataset(test_set)
+    valid_set_x, valid_set_y = shared_dataset(valid_set)
+    train_set_x, train_set_y = shared_dataset(train_set)
+
+    rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y),
+            (test_set_x, test_set_y)]
+    return rval
+
+
+def sgd_optimization_mnist(learning_rate=0.1, n_epochs=1000,
+                           dataset='mnist',
+                           batch_size=600):
+    
+    datasets = get_data(dataset)
+
+    train_set_x, train_set_y = datasets[0]
+    valid_set_x, valid_set_y = datasets[0]
+    test_set_x, test_set_y = datasets[2]
+    print(train_set_x,train_set_y)
+
+
+    #Number of mini-batches
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
+
+    
+
+    print '... building the model'
+
+    
+    index = T.lscalar()  # index to a batch
+
+    x = T.matrix('x')  # data, presented as array
+    y = T.ivector('y')  # labels 
+
+    
+    classifier = LinearClassifier(input=x, layer_in=28 * 28, layer_out=10)
+
+    
+    cost = classifier.cost_function(y)
+
+    # compiling a Theano function that computes the mistakes that are made by
+    # the model on a minibatch
+    test_model = theano.function(
+        inputs=[index],
+        outputs=classifier.errors(y),
+        givens={
+            x: test_set_x[index * batch_size: (index + 1) * batch_size],
+            y: test_set_y[index * batch_size: (index + 1) * batch_size]
+        }
+    )
+
+    validate_model = theano.function(
+        inputs=[index],
+        outputs=classifier.errors(y),
+        givens={
+            x: valid_set_x[index * batch_size: (index + 1) * batch_size],
+            y: valid_set_y[index * batch_size: (index + 1) * batch_size]
+        }
+    )
+
+    #getting the gradient
+    g_W = T.grad(cost=cost, wrt=classifier.weights)
+    g_b = T.grad(cost=cost, wrt=classifier.bias)
+
+    
+    updates = [(classifier.weights, classifier.weights - learning_rate * g_W),
+               (classifier.bias, classifier.bias - learning_rate * g_b)]
+
+    
+    train_model = theano.function(
+        inputs=[index],
+        outputs=cost,
+        updates=updates,
+        givens={
+            x: train_set_x[index * batch_size: (index + 1) * batch_size],
+            y: train_set_y[index * batch_size: (index + 1) * batch_size]
+        }
+    )
+    
+    print '... training the model'
+    
+    patience = 5000  # look as this many examples regardless
+    patience_increase = 2  # wait this much longer when a new best is
+                                  # found
+    improvement_threshold = 0.995  # a relative improvement of this much is
+                                  # considered significant
+    validation_frequency = min(n_train_batches, patience / 2)
+                                  #atleast go through these number of mini-batches
+
+    best_validation_loss = numpy.inf
+    test_score = 0.
+    start_time = time.clock()
+
+    done_looping = False
+    epoch = 0
+    while (epoch < n_epochs) and (not done_looping):
+        epoch = epoch + 1
+        for minibatch_index in xrange(n_train_batches):
+
+            minibatch_avg_cost = train_model(minibatch_index)
+            
+            iter = (epoch - 1) * n_train_batches + minibatch_index
+
+            if (iter + 1) % validation_frequency == 0:
+                
+                validation_losses = [validate_model(i)
+                                     for i in xrange(n_valid_batches)]
+                this_validation_loss = numpy.mean(validation_losses)
+
+                
+                if this_validation_loss < best_validation_loss:
+                   
+                    if this_validation_loss < best_validation_loss *  \
+                       improvement_threshold:
+                        patience = max(patience, iter * patience_increase)
+
+                    best_validation_loss = this_validation_loss
+                   
+
+                    test_losses = [test_model(i)
+                                   for i in xrange(n_test_batches)]
+                    test_score = numpy.mean(test_losses)
+
+                    
+                        
+
+            if patience <= iter:
+                done_looping = True
+                break
+
+    end_time = time.clock()
+    print(
+        (
+            'Optimization complete with best validation score of %f %%,'
+            'with test performance %f %%'
+        )
+        % (best_validation_loss * 100., test_score * 100.)
+    )
+    print 'The code run for %d epochs, with %f epochs/sec' % (
+        epoch, 1. * epoch / (end_time - start_time))
+    print >> sys.stderr, ('The code for file ' +
+                          os.path.split(__file__)[1] +
+                          ' ran for %.1fs' % ((end_time - start_time)))
+    return classifier
+
+
+
+def run_function():
+    checking=sgd_optimization_mnist()
+    return checking.weights,checking.bias
