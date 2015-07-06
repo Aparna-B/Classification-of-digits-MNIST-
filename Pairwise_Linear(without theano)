@@ -1,0 +1,83 @@
+import numpy as np
+import scipy
+import mnist_vector
+import theano.tensor as T
+
+def get_data(image,label):
+    x,y=mnist_vector.get_labeled_data(image,label)                      #get training data
+    return x,y
+
+def sigmoid(z):
+    return np.tanh(z)
+
+
+
+def main_func(training_data,training_label,epsilon,learning_rate,num_labels,th):
+
+    no_pixels=len(training_data[1])                                                                                          #Shaping output array in the format we want
+
+    training_data=training_data/255
+    error=np.zeros(num_labels*num_labels)                            #initializing all variables
+    summing_errors=0
+    iteration=0
+    temp=0
+    J=np.ones(num_labels*num_labels)
+    weights=np.zeros(num_labels*num_labels*no_pixels).reshape(num_labels*num_labels,no_pixels)
+    
+    print(max(J))
+    while iteration < 125:
+        J=np.zeros(num_labels*num_labels)
+        
+        for index in range(len(training_label)):
+            Y=np.random.rand(num_labels,num_labels)
+            Y=0*Y
+            temp=training_label[index,0]                                     #Formatting expected output:Rules are:Y is output matrix of size (num_label,num_label)
+            Y[temp,:]=1                                                         # if label is '1' , in output matrix,Y[1,:]=+1
+            Y[:,temp]=-1                                                        # Y[:,1]=-1 except for diagonal elements
+            for j in range(10):
+                Y[j,j]=0
+            Y=Y.reshape(-1)    
+            output=np.dot(training_data[index],weights.T)
+            output=sigmoid(output)                                               #calculating output and error with given weight values and activation fucnction is sigmoid
+            error=Y-output
+            error=np.array(error).reshape(1,100)
+            #print(error)
+            
+            grad=(np.dot(np.transpose(error),training_data[index].reshape(1,784)))
+            for l in range(len(grad)):
+                J[l] += np.sqrt(np.sum((grad[l])**2))/(len(training_data))
+                
+
+            summing_errors += grad
+           
+        summing_errors=summing_errors/(len(training_label))
+        print(summing_errors)
+        for k in range(len(weights)):
+            weights[k] += learning_rate*summing_errors[k]                                               #gradient descent with error function log(y)*(1-h(x)+(1-log(y))*h(x),where x is input ,y is output
+        iteration += 1
+        
+        print(J)
+
+    return weights
+
+
+def predict(weights,x,num_labels):
+    a=np.dot(x,weights.T)
+    t=np.zeros(num_labels)
+    classes=np.zeros(len(x))
+    for j in range(len(x)):
+        b=a[j].reshape(num_labels,num_labels)                  #testing the model
+        for i in range(10):
+            t[i]=sum(b[i,:])-sum(b[:,i])    
+        classes[j]=np.argmax(t)
+        print(j)
+    return classes                
+        
+        
+        
+        
+        
+        
+            
+    
+    
