@@ -1,0 +1,199 @@
+#This is based on the tutorial on deeplearning.net,with additional rbf layer and hidden layer
+
+
+
+
+
+import os
+import sys
+import time
+
+import numpy as np
+
+import theano
+import theano.tensor as T
+from theano.tensor.signal import downsample
+from theano.tensor.nnet import conv
+
+from single_perceptron import LinearClassifier, get_data
+from Multip import HiddenLayer
+
+
+class Layer(object):
+    def __init__(self, rng, input, filter_shape, image_shape, poolsize=(2, 2)):
+        
+        self.input = input
+        filter_params = np.prod(filter_shape[1:])
+        f_out = (filter_shape[0] * np.prod(filter_shape[2:])/np.prod(poolsize))
+        lim = np.sqrt(6. /(filter_params + f_out))
+        self.weights = theano.shared(np.asarray(rng.uniform(low = -lim,high = lim,size=filter_shape),dtype=theano.config.floatX),borrow=True)  #Layer Object for image-input,weight filters and output of each 
+        self.bias = theano.shared(value = np.zeros((filter_shape[0],),dtype = theano.config.floatX),borrow=True)
+        conv_out = conv.conv2d(input = input, filters = self.weights,filter_shape = filter_shape,image_shape =image_shape)
+        pooled_out = downsample.max_pool_2d(input = conv_out,ds=poolsize,ignore_border=True)
+        self.output = T.tanh(pooled_out + self.bias.dimshuffle('x',0,'x','x'))
+        self.params = [self.weights, self.bias]
+
+
+    
+        
+        
+
+def network(learning_rate=0.1, n_epochs=200,dataset='mnist',nkerns=[20, 50], batch_size=300):
+    rng = np.random.RandomState(23455)
+
+    datasets = get_data(dataset)
+
+    train_set_x, train_set_y = datasets[0]
+    valid_set_x, valid_set_y = datasets[0]              #getting the data
+    test_set_x, test_set_y = datasets[2]
+
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0]/batch_size
+    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]/batch_size
+    n_test_batches = test_set_x.get_value(borrow=True).shape[0]/batch_size
+
+    index = T.lscalar()
+    ind1 = T.lscalar()
+    ind2 = T.lscalar()
+    num = T.lscalar()                                   #creating symbolic variables 
+    x = T.matrix('x')
+    x1 = T.matrix('x')
+    x2 = T.matrix('x')
+
+    y = T.ivector('y')
+    z = T.lscalar('z')
+
+    print '... building the model'
+
+    layer0_input = x.reshape((batch_size, 1, 28, 28))
+    layer0 = Layer(
+        rng,
+        input=layer0_input,
+        image_shape=(batch_size, 1, 28, 28),                              # 2 layers-one convolutional and one downsampling/pooling layer where the max of a (2,2)grid is chosen by max pooling
+        filter_shape=(nkerns[0], 1, 5, 5),
+        poolsize=(2, 2)
+    )
+
+    layer1 = Layer(
+        rng,
+        input=layer0.output,
+        image_shape=(batch_size, nkerns[0], 12, 12),
+        filter_shape=(nkerns[1], nkerns[0], 5, 5),
+        poolsize=(2, 2)
+    )
+
+    layer2_input = layer1.output.flatten(2)
+    print(layer2_input)
+
+    layer2 = HiddenLayer(
+        rng,
+        input=layer2_input,
+        n_in=nkerns[1] * 4 * 4,
+        n_out=300,
+        activation=T.tanh
+    )
+    
+    
+
+    indices=[]
+    for i in range(250):
+        indices.append(int(np.random.rand(1)*100))
+    
+        
+    print(indices)    
+
+
+
+
+
+
+
+
+    phi_function = theano.function(inputs=[index,ind1,ind2],outputs=T.exp(-1*(layer2.output[index]-layer2.output[ind1])**2/(2*1837*1837)),givens={
+            x: valid_set_x[ind2 * batch_size: (ind2 + 1) * batch_size],
+            y: valid_set_y[ind2 * batch_size: (ind2 + 1) * batch_size]
+            
+        },on_unused_input='warn')
+    
+    
+    
+    phi=[]
+    
+    for lim in xrange(n_train_batches):
+        for lim1 in xrange(batch_size):
+            temp=[]
+            for lim2 in indices:
+                temp.append(phi_function(lim,lim1,lim2))
+            phi.append(temp)
+
+    phi = np.array(phi).reshape(n_train_batches,batch_size,len(indices))                #the rbf layer,consisting of 250 units
+
+    phi = theano.shared(value=phi,name='phi',borrow=True)
+
+    layer4 = LinearClassifier(input=x2, layer_in=250, layer_out=10)
+
+    cost = layer4.cost_function(y)
+
+
+    params = layer4.params + layer2.params + layer1.params + layer0.params
+
+    grads = T.grad(cost, params)
+
+    updates = [
+        (param_i, param_i - learning_rate * grad_i)
+        for param_i, grad_i in zip(params, grads)
+     ]
+
+   
+
+    train_model = theano.function(
+        [index],
+        cost,
+        updates=updates,
+        givens={
+            x: train_set_x[index * batch_size: (index + 1) * batch_size],                  #training function in theano
+            y: train_set_y[index * batch_size: (index + 1) * batch_size],
+            x2: phi[index]
+        }
+    )
+
+   
+
+    best_validation_loss = np.inf
+    best_iter = 0
+    test_score = 0.
+    start_time = time.clock()
+
+    epoch = 0
+    done_looping = False
+
+    while (epoch < n_epochs) and (not done_looping):
+        epoch = epoch + 1
+        for minibatch_index in xrange(n_train_batches):
+
+            iter = (epoch - 1) * n_train_batches + minibatch_index
+
+            if iter % 100 == 0:
+                print 'training @ iter = ', iter
+            cost_ij = train_model(minibatch_index)
+                
+     
+
+
+    end_time = time.clock()
+    print(end_time-start_time)
+    print('Optimization complete.')
+   
+    
+    return phi
+
+
+
+
+def experiment():
+    network()
+
+
+
+    
+        
+        
