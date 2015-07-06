@@ -1,0 +1,61 @@
+import theano
+import numpy as np
+import theano.tensor as T
+import scipy.spatial.distance as d
+
+def main_func(data1,data2,data3):
+    num0=[]
+    num1=[]
+    num2=[]
+    num3=[]
+    num4=[]
+    num5=[]
+    num6=[]
+    num7=[]
+    num8=[]
+    num9=[]
+    for i in xrange(len(data1)):
+        if data2[i]==0:
+            num0.append(data1[i])
+        if data2[i]==1:
+            num1.append(data1[i])
+        if data2[i]==2:
+            num2.append(data1[i])
+        if data2[i]==3:
+            num3.append(data1[i])
+        if data2[i]==4:
+            num4.append(data1[i])
+        if data2[i]==5:
+            num5.append(data1[i])
+        if data2[i]==6:
+            num6.append(data1[i])
+        if data2[i]==7:
+            num7.append(data1[i])
+        if data2[i]==8:
+            num8.append(data1[i])
+        if data2[i]==9:
+            num9.append(data1[i])
+    num0=np.mean(np.array(num0),axis=0)
+    num1=np.mean(np.array(num1),axis=0)
+    num2=np.mean(np.array(num2),axis=0)
+    num3=np.mean(np.array(num3),axis=0)
+    num4=np.mean(np.array(num4),axis=0)
+    num5=np.mean(np.array(num5),axis=0)
+    num6=np.mean(np.array(num6),axis=0)
+    num7=np.mean(np.array(num7),axis=0)
+    num8=np.mean(np.array(num8),axis=0)
+    num9=np.mean(np.array(num9),axis=0)
+    
+    label=[]
+    for row in data3:
+        temp=np.argmin([d.euclidean(row,num0),d.euclidean(row,num1),d.euclidean(row,num2),d.euclidean(row,num3),d.euclidean(row,num4),d.euclidean(row,num5),d.euclidean(row,num6),d.euclidean(row,num7),d.euclidean(row,num8),d.euclidean(row,num9)])
+        label.append(temp)
+
+    return label    
+
+
+
+            
+            
+        
+        
