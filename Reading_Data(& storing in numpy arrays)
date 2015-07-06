@@ -1,0 +1,58 @@
+import gzip
+from struct import unpack
+import numpy
+from numpy import zeros,uint8
+
+
+def  get_labeled_data(imagename,labelname):
+##    Read input-vector (image) and target class (label, 0-9) and return
+##       it as list of tuples.
+
+
+    images=gzip.open(imagename,'rb')       ##Read the images in binary mode
+    labels=gzip.open(labelname,'rb')
+
+## Unpack the data in MSB first unsigned int format using struct.unpack and get
+## information regarding the number of images,rows and cols in each image etc.
+
+    images.read(4)
+    number_of_images=images.read(4)
+    number_of_images=unpack('>I',number_of_images)[0]
+    number_of_rows=images.read(4)
+    number_of_rows=unpack('>I',number_of_rows)[0]
+    number_of_cols = images.read(4)
+    number_of_cols = unpack('>I', number_of_cols)[0]
+
+##Get similar information from labels
+
+    
+    labels.read(4)  
+    N = labels.read(4)
+    N = unpack('>I', N)[0]
+    
+##Check if image and label file correspond to each other
+
+    if number_of_images != N:
+        raise Exception('Number of labels did not match the number of images.')
+    
+#Get and store the data in arrays
+    image_data = zeros((N, number_of_rows*number_of_cols), dtype=uint8)  # Initialize numpy array
+    label_data = zeros((N, 1), dtype=uint8)  # Initialize numpy array
+    for i in range(N):
+##        if i % 1000 == 0:
+##            print("epochs: %i" % i)
+        for row in range(number_of_rows*number_of_cols):
+            
+                tmp_pixel = images.read(1)  # Just a single byte
+                tmp_pixel = unpack('>B', tmp_pixel)[0]
+                image_data[i][row] = tmp_pixel
+        tmp_label = labels.read(1)
+        label_data[i] = unpack('>B', tmp_label)[0]
+    p=[]
+    for i in xrange(len(image_data)):
+        p.append(label_data[i,0])
+    p=numpy.array(p)    
+            
+    return (image_data, p)
+
+    
