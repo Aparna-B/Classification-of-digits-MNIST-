@@ -1,0 +1,104 @@
+import numpy as np
+import theano
+import theano.tensor as T
+import random
+import scipy.spatial.distance as dist
+from scipy import *
+from scipy.linalg import norm, pinv
+from formatOut import format_output
+
+
+class RBF(object):
+    def __init__(self,input,output,support,num_labels,k):
+        self.input_size = input.shape[0]
+        self.input = input
+        self.n_in = input.shape[1]
+        self.num_labels = num_labels
+##        self.W = []                                                                                 
+##        for index in xrange(k*self.num_labels):
+##            temp = random.sample(set([-1,1]),1)
+##            self.W.append(temp[0])
+
+        self.W = np.zeros((k,num_labels))
+        #self.W = theano.shared(value=self.W,name='W',borrow=True)
+        self.centre = np.zeros(k)
+        self.final_output = format_output(output,num_labels)
+
+        self.y_pred = np.argmax(self.final_output,axis=1)
+        
+
+    def cost_func(self):
+        return -T.mean(T.nnet.softmax(self.final_output))                        #maximum log-lkelihood is taken as the cost function
+
+
+    
+
+
+def phi(y,y1,centres):
+    
+    phi0=np.zeros((y.shape[0],len(centres)))
+
+    for i in xrange(y.shape[0]):
+        for j in xrange(len(centres)):                                                 #The basis functions ,consisting of 'k' randomly chosen centres
+            print(i,j)
+            temp=centres[j]
+            phi0[i,j] = np.exp(-(norm(y[i]-y1[temp])**2)/(2*1834.58*1834.58))
+                
+
+
+    return phi0
+
+def random_centres(x,k):
+    index=np.zeros(k)
+    for i in xrange(k):                                                                             #Choosing 'k' random centres
+        index[i]=random.choice(xrange(x.shape[0]))
+    
+    return index
+    
+
+
+def main_function(data,labels,no_units):
+    classifier = RBF(input=data,output=labels,support=data,num_labels=10,k=no_units)
+    print(no_units)
+
+    indices = random_centres(data,no_units)
+    kernel_output = phi(classifier.input,classifier.input,indices)                                    #Getting the correct value of weight by computing the pseudo-inverse
+    kernel_output = np.array(kernel_output).reshape(classifier.input_size,no_units)
+    classifier.W = np.dot(np.linalg.pinv(kernel_output),classifier.final_output)
+
+    return classifier.W,indices
+
+
+def test_function(data,label,data1,labels1,no_units):
+    testing = RBF(input=data1,output=labels1,support=data,num_labels=10,k=no_units)
+    testing.W,numbers = main_function(data,label,no_units)
+
+    k_out = phi(testing.input,data,numbers)
+    k_out = np.array(k_out).reshape(testing.input_size,no_units)                    # Testing 
+
+    final_out = np.dot(k_out,testing.W)
+
+    testing.final_output = final_out
+    
+    s=0
+    for i in xrange(len(data1)):
+        if testing.y_pred[i]!=labels1[i]:
+            s=s+1
+            
+
+    return s*1.0/(len(data1))        
+    
+    
+    
+    
+    
+        
+        
+        
+
+        
+        
+        
+        
+        
+        
