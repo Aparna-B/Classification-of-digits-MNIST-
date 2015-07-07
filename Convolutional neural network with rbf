@@ -25,10 +25,16 @@ class Layer(object):
         self.input = input
         filter_params = np.prod(filter_shape[1:])                                            #Filter shape is in the form of a tuple (number of filters,number of input feature maps,filter height,filter width)
         f_out = (filter_shape[0] * np.prod(filter_shape[2:])/np.prod(poolsize))             # Image shape is another tuple ,(batch size, number of input feature maps,image height, image width)
-        lim = np.sqrt(6. /(filter_params + f_out))
+        lim = np.sqrt(6. /(filter_params + f_out))M = numpy.ones(filter_shape)
+        for times in xrange(numpy.prod(filter_shape)):
+            i=numpy.random.choice(xrange(filter_shape[0]))
+            j=numpy.random.choice(xrange(filter_shape[2]))                                                           #dropout
+            k=numpy.random.choice(xrange(filter_shape[3]))
+            M[i,0,j,k]=0
+        
         self.weights = theano.shared(np.asarray(rng.uniform(low = -lim,high = lim,size=filter_shape),dtype=theano.config.floatX),borrow=True)  #Layer Object for image-input,weight filters and output of each 
         self.bias = theano.shared(value = np.zeros((filter_shape[0],),dtype = theano.config.floatX),borrow=True)
-        conv_out = conv.conv2d(input = input, filters = self.weights,filter_shape = filter_shape,image_shape =image_shape)       #Convolution Output
+        conv_out = conv.conv2d(input = input, filters = self.weights*M,filter_shape = filter_shape,image_shape =image_shape)       #Convolution Output
         pooled_out = downsample.max_pool_2d(input = conv_out,ds=poolsize,ignore_border=True)                                   # Downsampling which involves ,convolving a matrix with lower dimensions with the imagewith no overlap
         self.output = T.tanh(pooled_out + self.bias.dimshuffle('x',0,'x','x'))                                                  #Dimshuffle allows to introduce a new axis
         self.params = [self.weights, self.bias]
