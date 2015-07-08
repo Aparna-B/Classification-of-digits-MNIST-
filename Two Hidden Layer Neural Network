@@ -10,7 +10,7 @@ import theano
 import theano.tensor as T
 
 
-from logistic_regression import LogisticRegression, load_data
+from single_perceptron import LinearClassifier,get_data
 
 
 
