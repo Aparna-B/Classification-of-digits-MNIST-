@@ -101,7 +101,7 @@ def network(learning_rate=0.1, n_epochs=200,dataset='mnist',nkerns=[20, 50], bat
     
 
     indices=[]
-    for i in range(250):
+    for i in range(100):
         indices.append(int(np.random.rand(1)*100))
     
         
