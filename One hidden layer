@@ -241,11 +241,18 @@ def test_mlp(learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
-    return classifier
+    return classifier.params
 
 
 
-def run_function():
-    check=test_mlp()
-
-    #return check.logRegressionLayer.y_pred
+def forward_prop(input,exp_output):
+    rng=numpy.random.RandomState(23455)
+    check1,check2=test_mlp()
+    hidden_layer_W = check1[0][0]
+    hidden_layer_b = check1[1][0]
+    logistic_W = check2[0][0]
+    logistic_b = check2[1][0]
+    hidden_output = T.tanh(T.dot(input, hidden_layer_W) + hidden_layer_b)
+    logistic_output = T.nnet.softmax(T.dot(hidden_output,logistic_W)+logistic_b)
+    output = T.argmax(logistic_output,axis=1).eval()
+    return output
