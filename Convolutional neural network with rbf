@@ -28,7 +28,7 @@ class Layer(object):
         lim = np.sqrt(6. /(filter_params + f_out))M = numpy.ones(filter_shape)
         for times in xrange(numpy.prod(filter_shape)):
             i=numpy.random.choice(xrange(filter_shape[0]))
-            j=numpy.random.choice(xrange(filter_shape[2]))                                                           #dropout
+            j=numpy.random.choice(xrange(filter_shape[2]))                        #CHANGED HERE-DROPNET                                                        #dropout
             k=numpy.random.choice(xrange(filter_shape[3]))
             M[i,0,j,k]=0
         
@@ -101,7 +101,7 @@ def network(learning_rate=0.1, n_epochs=200,dataset='mnist',nkerns=[20, 50], bat
     
 
     indices=[]
-    for i in range(100):
+    for i in range(100):                                                    #CHANGED HERE.CHOOSING RANDOM CENTRES
         indices.append(int(np.random.rand(1)*100))
     
         
@@ -115,7 +115,7 @@ def network(learning_rate=0.1, n_epochs=200,dataset='mnist',nkerns=[20, 50], bat
 
 
     phi_function = theano.function(inputs=[index,ind1,ind2],outputs=T.exp(-1*(layer2.output[index]-layer2.output[ind1])**2/(2*1837*1837)),givens={
-            x: valid_set_x[ind2 * batch_size: (ind2 + 1) * batch_size],
+            x: valid_set_x[ind2 * batch_size: (ind2 + 1) * batch_size],               #CHANGED HERE,IMPLEMENTATION OF RBF'S
             y: valid_set_y[ind2 * batch_size: (ind2 + 1) * batch_size]
             
         },on_unused_input='warn')
